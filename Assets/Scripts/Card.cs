@@ -28,7 +28,7 @@ public class Card : MonoBehaviour
 
     void Start()
     {
-        mSpriteRenderer.sprite = BackImage;
+        mSpriteRenderer.sprite = CardImage;
         
     }
 

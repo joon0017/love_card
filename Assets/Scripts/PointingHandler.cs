@@ -5,11 +5,11 @@ using UnityEngine.InputSystem;
 
 public class PointingHandler : MonoBehaviour
 {
-    [SerializeField] private InputAction press, screenPosition;
+    [SerializeField] private InputAction press, screenPosition, rightClick;
 
     private Vector3 currentScreenPosition;
-    Camera camera;
-    public bool isDragging = false;
+    private bool isDragging = false;
+    private bool rotated = false;
     private Vector3 WorldPosition{
         get
         {
@@ -18,8 +18,8 @@ public class PointingHandler : MonoBehaviour
         }
     }
 
-
-    public bool isClickedOn
+    private Camera camera;
+    private bool isClickedOn
     {
         get
         {
@@ -27,23 +27,29 @@ public class PointingHandler : MonoBehaviour
             RaycastHit hit;
             if (Physics.Raycast(ray, out hit))
             {
-                Debug.Log("Hit: " + hit.transform.name);
                 return hit.transform == this.transform;
             }
             return false;
         }
     }
+
+
     private void Awake() {
         camera = Camera.main;
         screenPosition.Enable();
         press.Enable();
+        rightClick.Enable();
 
         screenPosition.performed += context => {
             currentScreenPosition = context.ReadValue<Vector2>();
         };
 
         press.performed += _ => {
-                if(isClickedOn) StartCoroutine(Drag());
+            if(isClickedOn) StartCoroutine(Drag());
+        };
+
+        rightClick.performed += _ => {
+           if(isClickedOn) StartCoroutine(RightClick());
         };
 
         press.canceled += _ => {
@@ -52,6 +58,7 @@ public class PointingHandler : MonoBehaviour
     }
 
     private IEnumerator Drag(){
+        Debug.Log("Started Dragging " + gameObject.name);
         isDragging = true;
         Vector3 offset = transform.position - WorldPosition;
 
@@ -61,4 +68,16 @@ public class PointingHandler : MonoBehaviour
         }
         //drop
     }
+    
+    private IEnumerator RightClick(){
+        //right click action
+        if(rotated)
+            transform.Rotate(0,0,-90);
+        else
+            transform.Rotate(0,0,90);
+        rotated = !rotated;
+        yield return null;
+    }
+
+
 }

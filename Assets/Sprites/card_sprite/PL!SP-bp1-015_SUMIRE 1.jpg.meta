@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: f3f0b4a47b57bb642a3d57facde055d1
+guid: f9a41168b98e98b4fb13223d563e0297
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -7281259024619714988
-    second: PL!SP-bp1-015_SUMIRE_0
+      213: -8704160058522067920
+    second: PL!SP-bp1-015_SUMIRE 1_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -46,7 +46,7 @@ TextureImporter:
   nPOTScale: 0
   lightmap: 0
   compressionQuality: 50
-  spriteMode: 1
+  spriteMode: 2
   spriteExtrude: 1
   spriteMeshType: 1
   alignment: 0
@@ -100,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: PL!SP-bp1-015_SUMIRE_0
+      name: PL!SP-bp1-015_SUMIRE 1_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 350
-        height: 489
+        width: 232
+        height: 320
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 4564fefae75c3fa90800000000000000
-      internalID: -7281259024619714988
+      spriteID: 03c16ab1b8c943780800000000000000
+      internalID: -8704160058522067920
       vertices: []
       indices: 
       edges: []
@@ -125,7 +125,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 5e97eb03825dee720800000000000000
+    spriteID: 
     internalID: 0
     vertices: []
     indices: 
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      PL!SP-bp1-015_SUMIRE_0: -7281259024619714988
+      PL!SP-bp1-015_SUMIRE 1_0: -8704160058522067920
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
