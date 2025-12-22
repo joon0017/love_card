@@ -6,10 +6,12 @@ public class Card : MonoBehaviour
     [SerializeField] protected Sprite CardImage;
     [SerializeField] private Sprite BackImage;
     private SpriteRenderer mSpriteRenderer;
-
+    public int cardID;
+    public string cardName;
     [SerializeField] private bool flip = false;
 
-    PositionStatus PosStatus;
+    public PositionStatus PosStatus;
+    public CardType Type;
     public enum PositionStatus
     {
         InDeck=1,

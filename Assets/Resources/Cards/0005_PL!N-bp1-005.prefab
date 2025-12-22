@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 5882254380938430783}
   - component: {fileID: 1790255837628644720}
   m_Layer: 0
-  m_Name: Sumire
+  m_Name: 0005_PL!N-bp1-005
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -82,7 +82,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: -628045831290431274, guid: cfb2a8a0ed9592e4197c81c5beb5d8dc, type: 3}
+  m_Sprite: {fileID: 2444217110207527154, guid: 5eddd57c1e634ee4b863d2a584cafbd7, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -126,8 +126,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 022cbdc07f710b34383518ba58a8104b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Card
-  CardImage: {fileID: -628045831290431274, guid: cfb2a8a0ed9592e4197c81c5beb5d8dc, type: 3}
+  CardImage: {fileID: 2444217110207527154, guid: 5eddd57c1e634ee4b863d2a584cafbd7, type: 3}
   BackImage: {fileID: 21300000, guid: 890e8cadb46720d4f956dfe4efa68684, type: 3}
+  cardID: 5
+  cardName: 
   flip: 0
 --- !u!114 &1790255837628644720
 MonoBehaviour:
