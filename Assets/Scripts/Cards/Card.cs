@@ -12,10 +12,17 @@ public class Card : MonoBehaviour
     PositionStatus PosStatus;
     public enum PositionStatus
     {
-        InDeck,
-        InHand,
-        InBoard,
-        InGrave
+        InDeck=1,
+        InHand=2,
+        InBoard=3,
+        InGrave=4
+    }
+
+    public enum CardType
+    {
+        Member=1,
+        Live=2,
+        Energy=3
     }
 
 

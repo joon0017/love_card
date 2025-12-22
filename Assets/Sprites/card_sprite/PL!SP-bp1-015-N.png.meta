@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: f9a41168b98e98b4fb13223d563e0297
+guid: cfb2a8a0ed9592e4197c81c5beb5d8dc
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -8704160058522067920
-    second: PL!SP-bp1-015_SUMIRE 1_0
+      213: -628045831290431274
+    second: PL!SP-bp1-015-N_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,7 +100,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: PL!SP-bp1-015_SUMIRE 1_0
+      name: PL!SP-bp1-015-N_0
       rect:
         serializedVersion: 2
         x: 0
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 03c16ab1b8c943780800000000000000
-      internalID: -8704160058522067920
+      spriteID: 6d8d44bd4abb847f0800000000000000
+      internalID: -628045831290431274
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      PL!SP-bp1-015_SUMIRE 1_0: -8704160058522067920
+      PL!SP-bp1-015-N_0: -628045831290431274
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
