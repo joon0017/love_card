@@ -8,8 +8,8 @@ public class PointingHandler : MonoBehaviour
     [SerializeField] private InputAction press, screenPosition, rightClick;
 
     private Vector3 currentScreenPosition;
-    private bool isDragging = false;
-    private bool rotated = false;
+    public bool isDragging = false;
+    public bool rotated = false;
     private Vector3 WorldPosition{
         get
         {

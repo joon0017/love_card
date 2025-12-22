@@ -62,4 +62,14 @@ public class Card : MonoBehaviour
             mSpriteRenderer.sprite = BackImage;
         }
     }
+
+    private void OnCollisionEnter(Collision other) {
+        Debug.Log("Collided with " + other.gameObject.name);
+        this.gameObject.transform.parent = other.transform;
+
+    }
+    private void OnCollisionExit(Collision other) {
+        Debug.Log("Stopped Colliding with " + other.gameObject.name);
+        this.gameObject.transform.parent = null;
+    }
 }

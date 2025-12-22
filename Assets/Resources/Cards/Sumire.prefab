@@ -128,9 +128,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Card
   CardImage: {fileID: -628045831290431274, guid: cfb2a8a0ed9592e4197c81c5beb5d8dc, type: 3}
   BackImage: {fileID: 21300000, guid: 890e8cadb46720d4f956dfe4efa68684, type: 3}
-  cardID: 6
-  cardName: 
+  cardID: 150
+  cardName: "\uC2A4\uBBF8\uB808"
   flip: 0
+  PosStatus: 0
+  Type: 0
 --- !u!114 &1790255837628644720
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -194,3 +196,5 @@ MonoBehaviour:
       m_Action: Right Click
       m_Flags: 0
     m_Flags: 0
+  isDragging: 0
+  rotated: 0
