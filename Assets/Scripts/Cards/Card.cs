@@ -1,8 +1,6 @@
 using UnityEngine;
-using UnityEngine.UI;
 
-public class Card : MonoBehaviour
-{
+public class Card : MonoBehaviour{
     [SerializeField] protected Sprite CardImage;
     [SerializeField] private Sprite BackImage;
     private SpriteRenderer mSpriteRenderer;
@@ -10,14 +8,27 @@ public class Card : MonoBehaviour
     public string cardName;
     [SerializeField] private bool flip = false;
 
-    public PositionStatus PosStatus;
+    public Sprite FrontImage => CardImage;
+    public Sprite BackImageSprite => BackImage;
+    public string DisplayName => string.IsNullOrWhiteSpace(cardName) ? name : cardName;
+
+    public PositionStatus posStatus;
     public CardType Type;
     public enum PositionStatus
     {
         InDeck=1,
         InHand=2,
-        InBoard=3,
-        InGrave=4
+        InDiscard=3,
+        FieldLeft=4,
+        FieldCenter=5,
+        FieldRight=6,
+        FieldLiveLeft=7,
+        FieldLiveCenter=8,
+        FieldLiveRight=9
+    }
+
+    public int GetPositionStatus(){
+        return (int)posStatus;
     }
 
     public enum CardType
@@ -31,13 +42,13 @@ public class Card : MonoBehaviour
     void Awake()
     {
         mSpriteRenderer = GetComponent<SpriteRenderer>();
-        PosStatus = PositionStatus.InDeck;
+        posStatus = PositionStatus.InDeck;
     }
     
 
     void Start()
     {
-        mSpriteRenderer.sprite = CardImage;
+        if(mSpriteRenderer != null) mSpriteRenderer.sprite = CardImage;
         
     }
 
@@ -53,6 +64,8 @@ public class Card : MonoBehaviour
 
     void FlipCard()
     {
+        if(mSpriteRenderer == null) return;
+
         if (mSpriteRenderer.sprite == BackImage)
         {
             mSpriteRenderer.sprite = CardImage;
@@ -63,13 +76,24 @@ public class Card : MonoBehaviour
         }
     }
 
-    private void OnCollisionEnter(Collision other) {
-        Debug.Log("Collided with " + other.gameObject.name);
-        this.gameObject.transform.parent = other.transform;
 
+    public void SetPositionStatus(PositionStatus status){
+        posStatus = status;
     }
-    private void OnCollisionExit(Collision other) {
-        Debug.Log("Stopped Colliding with " + other.gameObject.name);
-        this.gameObject.transform.parent = null;
+
+    public void SetRaycastStatue(int index){
+        SetPositionStatus((PositionStatus)index);
     }
+
+    public void AddToHand(){
+        posStatus = PositionStatus.InHand;
+
+        if(HandManager.instance == null){
+            Debug.LogWarning("Cannot add card to hand because no HandManager exists in the scene.");
+            return;
+        }
+
+        HandManager.instance.AddCardToList(this.gameObject);
+    }
+
 }
