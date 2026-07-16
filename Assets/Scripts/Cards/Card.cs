@@ -19,6 +19,7 @@ public class Card : MonoBehaviour{
         InDeck=1,
         InHand=2,
         InDiscard=3,
+        DressingRoom=3,
         FieldLeft=4,
         FieldCenter=5,
         FieldRight=6,
@@ -85,7 +86,7 @@ public class Card : MonoBehaviour{
         SetPositionStatus((PositionStatus)index);
     }
 
-    public void AddToHand(){
+    public void AddToHand(bool animate = true){
         posStatus = PositionStatus.InHand;
 
         if(HandManager.instance == null){
@@ -93,7 +94,7 @@ public class Card : MonoBehaviour{
             return;
         }
 
-        HandManager.instance.AddCardToList(this.gameObject);
+        HandManager.instance.AddCardToList(this.gameObject, animate);
     }
 
 }

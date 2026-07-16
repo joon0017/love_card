@@ -1109,10 +1109,13 @@ MonoBehaviour:
   autoStartGame: 1
   createMissingManagers: 1
   shuffleOnStart: 1
-  openingHandSize: 5
+  openingHandSize: 0
   firstPhaseAfterSetup: 1
-  drawAtStartOfDrawPhase: 1
+  drawAtStartOfDrawPhase: 0
   skipFirstTurnDraw: 1
+  drawCardByDraggingDeck: 1
+  deckDragThresholdPixels: 40
+  deckFieldPosition: 1
   OnGameStarted:
     m_PersistentCalls:
       m_Calls: []

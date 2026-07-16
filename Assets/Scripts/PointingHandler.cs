@@ -14,6 +14,9 @@ public class PointingHandler : MonoBehaviour
     private FieldRaycastHandler hoveredField;
     private FieldRaycastHandler occupiedField;
 
+    private const float FieldRayStartZ = -100f;
+    private const float FieldRayDistance = 200f;
+
     private Vector3 WorldPosition{
         get
         {
@@ -109,6 +112,7 @@ public class PointingHandler : MonoBehaviour
 
         Debug.Log("Started Dragging " + gameObject.name);
         isDragging = true;
+        DressingRoomManager.instance?.CancelPendingInteraction();
         ReleaseOccupiedField();
         HandManager.instance?.RemoveCardFromList(gameObject);
 
@@ -126,11 +130,37 @@ public class PointingHandler : MonoBehaviour
 
         isDragging = false;
         PlaceOnFieldOrReturnToHand();
-        HandManager.instance?.UpdateCardPositions();
     }
 
     private void PlaceOnFieldOrReturnToHand(){
         FieldRaycastHandler targetField = hoveredField != null ? hoveredField : FindFieldUnderCard();
+
+        if(targetField != null && targetField.FieldPosition == Card.PositionStatus.InDeck){
+            hitObject = targetField.gameObject;
+            transform.position = new Vector3(targetField.transform.position.x, targetField.transform.position.y, 0);
+
+            if(GameManager.instance != null && GameManager.instance.TryShowDeckPlacementPrompt(card)){
+                return;
+            }
+
+            hitObject = null;
+            card?.AddToHand();
+            return;
+        }
+
+        if(targetField != null && targetField.FieldPosition == Card.PositionStatus.DressingRoom){
+            hitObject = targetField.gameObject;
+            transform.position = new Vector3(targetField.transform.position.x, targetField.transform.position.y, 0);
+
+            DressingRoomManager dressingRoomManager = DressingRoomManager.GetOrCreate();
+            if(dressingRoomManager != null && dressingRoomManager.PlaceCardOnTop(card, targetField)){
+                return;
+            }
+
+            hitObject = null;
+            card?.AddToHand();
+            return;
+        }
 
         if(targetField != null && targetField.CanAcceptCard(card)){
             targetField.Occupy(card);
@@ -153,8 +183,9 @@ public class PointingHandler : MonoBehaviour
     }
 
     private FieldRaycastHandler FindFieldUnderCard(){
-        Ray ray = new Ray(transform.position + Vector3.back * 10f, Vector3.forward);
-        RaycastHit[] hits = Physics.RaycastAll(ray, 20f);
+        Vector3 rayStart = new Vector3(transform.position.x, transform.position.y, FieldRayStartZ);
+        Ray ray = new Ray(rayStart, Vector3.forward);
+        RaycastHit[] hits = Physics.RaycastAll(ray, FieldRayDistance);
         FieldRaycastHandler nearestField = null;
         float nearestDistance = float.MaxValue;
 

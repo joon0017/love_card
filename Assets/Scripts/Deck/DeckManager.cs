@@ -1,5 +1,6 @@
 using System.Linq;
 using UnityEngine;
+using System.Collections.Generic;
 
 public class DeckManager : MonoBehaviour
 {
@@ -14,10 +15,18 @@ public class DeckManager : MonoBehaviour
     private int nextCardIndex = 0;
 
     [SerializeField] private bool loadSelectedSavedDeck = true;
+    [SerializeField] private bool persistBetweenScenes = true;
     [SerializeField] private bool schuffle = false;
     void Awake()
     {
-        if (instance == null) instance = this;
+        if (instance == null)
+        {
+            instance = this;
+            if (persistBetweenScenes)
+            {
+                DontDestroyOnLoad(gameObject);
+            }
+        }
         else
         {
             Destroy(gameObject);
@@ -136,16 +145,19 @@ public class DeckManager : MonoBehaviour
     {
         if(InDeck == null || InDeck.Length <= 1) return;
 
-        for (int i = 0; i < InDeck.Length; i++)
+        for (int i = nextCardIndex; i < InDeck.Length; i++)
         {
             int r = UnityEngine.Random.Range(i, InDeck.Length);
             (InDeck[i], InDeck[r]) = (InDeck[r], InDeck[i]);
         }
-
-        nextCardIndex = 0;
     }
 
     public Card DrawCard()
+    {
+        return DrawCard(transform.position);
+    }
+
+    public Card DrawCard(Vector3 drawPosition)
     {
         if(InDeck == null || nextCardIndex >= InDeck.Length)
         {
@@ -156,9 +168,56 @@ public class DeckManager : MonoBehaviour
         Card cardPrefab = InDeck[nextCardIndex++];
         if(cardPrefab == null) return null;
 
-        Card drawnCard = Instantiate(cardPrefab, transform.position, Quaternion.identity);
+        Card drawnCard = Instantiate(cardPrefab, drawPosition, Quaternion.identity);
         drawnCard.AddToHand();
         return drawnCard;
+    }
+
+    public Card PeekTopCard()
+    {
+        if(InDeck == null || nextCardIndex >= InDeck.Length)
+        {
+            return null;
+        }
+
+        return InDeck[nextCardIndex];
+    }
+
+    public Card DrawRandomCard()
+    {
+        return DrawRandomCard(transform.position);
+    }
+
+    public Card DrawRandomCard(Vector3 drawPosition)
+    {
+        if(InDeck == null || nextCardIndex >= InDeck.Length)
+        {
+            Debug.LogWarning("Cannot draw a random card because the deck is empty.");
+            return null;
+        }
+
+        int randomIndex = UnityEngine.Random.Range(nextCardIndex, InDeck.Length);
+        (InDeck[nextCardIndex], InDeck[randomIndex]) = (InDeck[randomIndex], InDeck[nextCardIndex]);
+        return DrawCard(drawPosition);
+    }
+
+    public bool PutCardOnTop(Card card)
+    {
+        return InsertCardInRemainingDeck(card, nextCardIndex);
+    }
+
+    public bool PutCardOnBottom(Card card)
+    {
+        int bottomIndex = InDeck != null ? InDeck.Length : 0;
+        return InsertCardInRemainingDeck(card, bottomIndex);
+    }
+
+    public bool PutCardOnTopAndShuffle(Card card)
+    {
+        if (!PutCardOnTop(card)) return false;
+
+        ShuffleDeck();
+        return true;
     }
 
     private void LoadAllCards(){
@@ -175,5 +234,35 @@ public class DeckManager : MonoBehaviour
     private void SetDeck(Card[] cards){
         InDeck = cards ?? new Card[0];
         nextCardIndex = 0;
+    }
+
+    private bool InsertCardInRemainingDeck(Card card, int insertIndex)
+    {
+        if (card == null) return false;
+
+        Card cardPrefab = FindCardPrefab(card.cardID);
+        if (cardPrefab == null)
+        {
+            Debug.LogWarning($"Cannot put card id {card.cardID} into the deck because no matching prefab exists.");
+            return false;
+        }
+
+        List<Card> cards = InDeck != null ? InDeck.ToList() : new List<Card>();
+        int safeIndex = Mathf.Clamp(insertIndex, nextCardIndex, cards.Count);
+        cards.Insert(safeIndex, cardPrefab);
+        InDeck = cards.ToArray();
+
+        Destroy(card.gameObject);
+        return true;
+    }
+
+    private Card FindCardPrefab(int cardId)
+    {
+        if (AllCards == null || AllCards.Length == 0)
+        {
+            LoadAllCards();
+        }
+
+        return AllCards.FirstOrDefault(card => card.cardID == cardId);
     }
 }

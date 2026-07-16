@@ -18,24 +18,38 @@ public class DeckEditorSceneController : MonoBehaviour
     private readonly Color accentColor = new Color(0.85f, 0.21f, 0.32f);
     private readonly Color mutedTextColor = new Color(0.72f, 0.76f, 0.80f);
 
-    private Font uiFont;
+    [Header("Scene UI References")]
+    [SerializeField] private Canvas deckEditorCanvas;
+    [SerializeField] private Font uiFont;
+    [SerializeField] private InputField deckNameInput;
+    [SerializeField] private InputField encodedDeckInput;
+    [SerializeField] private Text deckCountText;
+    [SerializeField] private Text statusText;
+    [SerializeField] private RectTransform savedDeckList;
+    [SerializeField] private RectTransform cardLibraryList;
+    [SerializeField] private RectTransform currentDeckList;
+
+    [Header("Scene UI Buttons")]
+    [SerializeField] private Button newDeckButton;
+    [SerializeField] private Button saveDeckButton;
+    [SerializeField] private Button clearDeckButton;
+    [SerializeField] private Button playButton;
+    [SerializeField] private Button refreshSavedDecksButton;
+    [SerializeField] private Button reloadCardsButton;
+    [SerializeField] private Button sortDeckButton;
+    [SerializeField] private Button exportButton;
+    [SerializeField] private Button importButton;
+
     private Card[] allCards = new Card[0];
     private Dictionary<int, Card> cardsById = new Dictionary<int, Card>();
-
-    private InputField deckNameInput;
-    private InputField encodedDeckInput;
-    private Text deckCountText;
-    private Text statusText;
-    private RectTransform savedDeckList;
-    private RectTransform cardLibraryList;
-    private RectTransform currentDeckList;
 
     private void Awake()
     {
         ResolveManagers();
         EnsureEventSystem();
         LoadCardLibrary();
-        BuildInterface();
+        ResolveFont();
+        BindInterface();
     }
 
     private void Start()
@@ -90,16 +104,55 @@ public class DeckEditorSceneController : MonoBehaviour
             .ToDictionary(group => group.Key, group => group.First());
     }
 
-    private void BuildInterface()
+    private void ResolveFont()
     {
+        if (uiFont != null) return;
         uiFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         if (uiFont == null)
         {
             uiFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
         }
 
+    }
+
+    private void BindInterface()
+    {
+        if (deckEditorCanvas == null)
+        {
+            Debug.LogError("Deck Editor UI references are missing. Open Tools > Deck Editor > Rebuild Editable UI.", this);
+            enabled = false;
+            return;
+        }
+
+        deckNameInput.onEndEdit.AddListener(deckEditorManager.SetDeckName);
+        newDeckButton.onClick.AddListener(CreateNewDeck);
+        saveDeckButton.onClick.AddListener(SaveDeck);
+        clearDeckButton.onClick.AddListener(ClearDeck);
+        playButton.onClick.AddListener(StartFreshPlayfield);
+        refreshSavedDecksButton.onClick.AddListener(RefreshSavedDecks);
+        reloadCardsButton.onClick.AddListener(ReloadCards);
+        sortDeckButton.onClick.AddListener(RefreshCurrentDeck);
+        exportButton.onClick.AddListener(ExportDeck);
+        importButton.onClick.AddListener(ImportDeck);
+    }
+
+    private void CreateNewDeck() { deckEditorManager.CreateNewDeck("New Deck"); SetStatus("New deck created."); RefreshAll(); }
+    private void SaveDeck() { deckEditorManager.SaveCurrentDeck(); SetStatus("Deck saved and selected for play."); RefreshAll(); }
+    private void ClearDeck() { deckEditorManager.ClearDeck(); SetStatus("Deck cleared."); }
+    private void ReloadCards() { LoadCardLibrary(); RefreshCardLibrary(); }
+    private void ExportDeck() { encodedDeckInput.text = deckEditorManager.ExportCurrentDeck(); SetStatus("Encoded deck data exported."); }
+    private void ImportDeck() { if (deckEditorManager.ImportDeckFromEncodedText(encodedDeckInput.text)) { SetStatus("Encoded deck imported. Save it to keep it locally."); RefreshAll(); } }
+
+#if UNITY_EDITOR
+    public void RebuildEditableInterface()
+    {
+        ResolveFont();
+        if (deckEditorCanvas != null) DestroyImmediate(deckEditorCanvas.gameObject);
+
         GameObject canvasObject = new GameObject("DeckEditorCanvas");
+        UnityEditor.Undo.RegisterCreatedObjectUndo(canvasObject, "Build Deck Editor UI");
         Canvas canvas = canvasObject.AddComponent<Canvas>();
+        deckEditorCanvas = canvas;
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvasObject.AddComponent<GraphicRaycaster>();
 
@@ -125,7 +178,9 @@ public class DeckEditorSceneController : MonoBehaviour
         BuildHeader(root);
         BuildBody(root);
         BuildFooter(root);
+        UnityEditor.EditorUtility.SetDirty(this);
     }
+#endif
 
     private void BuildHeader(RectTransform parent)
     {
@@ -141,27 +196,10 @@ public class DeckEditorSceneController : MonoBehaviour
         AddLayoutElement(deckNameInput.GetComponent<RectTransform>(), 380, 48, 1, 0);
         deckNameInput.onEndEdit.AddListener(deckEditorManager.SetDeckName);
 
-        CreateButton(header, "New", () =>
-        {
-            deckEditorManager.CreateNewDeck("New Deck");
-            SetStatus("New deck created.");
-            RefreshAll();
-        });
-
-        CreateButton(header, "Save", () =>
-        {
-            deckEditorManager.SaveCurrentDeck();
-            SetStatus("Deck saved and selected for play.");
-            RefreshAll();
-        }, accentColor);
-
-        CreateButton(header, "Clear", () =>
-        {
-            deckEditorManager.ClearDeck();
-            SetStatus("Deck cleared.");
-        });
-
-        CreateButton(header, "Play", StartFreshPlayfield);
+        newDeckButton = CreateButton(header, "New", null);
+        saveDeckButton = CreateButton(header, "Save", null, accentColor);
+        clearDeckButton = CreateButton(header, "Clear", null);
+        playButton = CreateButton(header, "Play", null);
     }
 
     private void BuildBody(RectTransform parent)
@@ -172,13 +210,9 @@ public class DeckEditorSceneController : MonoBehaviour
         layout.childForceExpandWidth = true;
         layout.childForceExpandHeight = true;
 
-        savedDeckList = BuildColumn(body, "Saved Decks", "Refresh", RefreshSavedDecks, 0.8f);
-        cardLibraryList = BuildColumn(body, "Card Library", "Reload", () =>
-        {
-            LoadCardLibrary();
-            RefreshCardLibrary();
-        }, 1.2f);
-        currentDeckList = BuildColumn(body, "Current Deck", "Sort", RefreshCurrentDeck, 1.0f);
+        savedDeckList = BuildColumn(body, "Saved Decks", "Refresh", out refreshSavedDecksButton, 0.8f);
+        cardLibraryList = BuildColumn(body, "Card Library", "Reload", out reloadCardsButton, 1.2f);
+        currentDeckList = BuildColumn(body, "Current Deck", "Sort", out sortDeckButton, 1.0f);
     }
 
     private void BuildFooter(RectTransform parent)
@@ -204,20 +238,8 @@ public class DeckEditorSceneController : MonoBehaviour
         AddLayoutElement(buttonStack, 160, -1, 0, 1);
         AddVerticalLayout(buttonStack, 8, 0, 0, 0, 0);
 
-        CreateButton(buttonStack, "Export", () =>
-        {
-            encodedDeckInput.text = deckEditorManager.ExportCurrentDeck();
-            SetStatus("Encoded deck data exported.");
-        });
-
-        CreateButton(buttonStack, "Import", () =>
-        {
-            if (deckEditorManager.ImportDeckFromEncodedText(encodedDeckInput.text))
-            {
-                SetStatus("Encoded deck imported. Save it to keep it locally.");
-                RefreshAll();
-            }
-        }, accentColor);
+        exportButton = CreateButton(buttonStack, "Export", null);
+        importButton = CreateButton(buttonStack, "Import", null, accentColor);
 
         RectTransform statusRow = CreateRect("StatusRow", footer);
         AddLayoutElement(statusRow, -1, 28, 0, 0);
@@ -231,7 +253,7 @@ public class DeckEditorSceneController : MonoBehaviour
         AddLayoutElement(statusText.rectTransform, -1, -1, 1, 0);
     }
 
-    private RectTransform BuildColumn(RectTransform parent, string title, string actionLabel, UnityEngine.Events.UnityAction action, float flexibleWidth)
+    private RectTransform BuildColumn(RectTransform parent, string title, string actionLabel, out Button actionButton, float flexibleWidth)
     {
         RectTransform column = CreatePanel(title.Replace(" ", "") + "Column", parent, panelColor);
         AddLayoutElement(column, 320, -1, flexibleWidth, 1);
@@ -245,7 +267,7 @@ public class DeckEditorSceneController : MonoBehaviour
 
         Text heading = CreateText("Title", headingRow, title, 24, FontStyle.Bold, TextAnchor.MiddleLeft);
         AddLayoutElement(heading.rectTransform, -1, -1, 1, 0);
-        CreateButton(headingRow, actionLabel, action);
+        actionButton = CreateButton(headingRow, actionLabel, null);
 
         return CreateScrollContent(title.Replace(" ", "") + "List", column);
     }
@@ -296,15 +318,25 @@ public class DeckEditorSceneController : MonoBehaviour
             return;
         }
 
-        ResetRuntimeManagers();
+        PrepareRuntimeDeckManager();
         SceneManager.LoadScene(playSceneName, LoadSceneMode.Single);
     }
 
-    private void ResetRuntimeManagers()
+    private void PrepareRuntimeDeckManager()
     {
-        GameManager.instance = null;
-        DeckManager.instance = null;
-        HandManager.instance = null;
+        DeckManager runtimeDeckManager = DeckManager.instance;
+        if (runtimeDeckManager == null)
+        {
+            runtimeDeckManager = Object.FindFirstObjectByType<DeckManager>();
+        }
+
+        if (runtimeDeckManager == null)
+        {
+            GameObject deckManagerObject = new GameObject("DeckManager");
+            runtimeDeckManager = deckManagerObject.AddComponent<DeckManager>();
+        }
+
+        runtimeDeckManager.UseDeck(deckEditorManager.CurrentDeck);
     }
 
     private void RefreshSavedDecks()
@@ -472,7 +504,7 @@ public class DeckEditorSceneController : MonoBehaviour
 
         Button button = rect.gameObject.AddComponent<Button>();
         button.targetGraphic = image;
-        button.onClick.AddListener(action);
+        if (action != null) button.onClick.AddListener(action);
 
         Text text = CreateText("Label", rect, label, 18, FontStyle.Bold, TextAnchor.MiddleCenter);
         Stretch(text.rectTransform, 8, 8, 4, 4);

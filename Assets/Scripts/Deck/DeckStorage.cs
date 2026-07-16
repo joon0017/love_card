@@ -236,3 +236,4 @@ public static class DeckStorage
         return string.IsNullOrWhiteSpace(sanitizedDeckId) ? Guid.NewGuid().ToString("N") : sanitizedDeckId;
     }
 }
+ 
