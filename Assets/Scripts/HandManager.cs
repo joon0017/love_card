@@ -75,6 +75,11 @@ public class HandManager : MonoBehaviour
         if (card == null) return;
 
         StopCardMovement(card);
+        if (card.TryGetComponent(out PointingHandler pointingHandler))
+        {
+            pointingHandler.SetUpright();
+        }
+
         if (!animate || handAnimationDuration <= 0f || !gameObject.activeInHierarchy)
         {
             card.transform.position = targetPosition;

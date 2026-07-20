@@ -200,12 +200,19 @@ public class PointingHandler : MonoBehaviour
         return nearestField;
     }
 
-    private void RotateCard(){
+    public void RotateCard(){
         if(rotated)
             transform.Rotate(0,0,-90);
         else
             transform.Rotate(0,0,90);
         rotated = !rotated;
+    }
+
+    public void SetUpright(){
+        if(!rotated) return;
+
+        transform.rotation = Quaternion.identity;
+        rotated = false;
     }
 
 

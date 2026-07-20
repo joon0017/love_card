@@ -1,12 +1,12 @@
 using UnityEngine;
-using UnityEngine.Networking;
 using System.Collections;
-using System.IO;
 
 public class Card : MonoBehaviour{
     [SerializeField] protected Sprite CardImage;
     [SerializeField] private string streamingImagePath;
+    [SerializeField] private string officialImageUrl;
     [SerializeField] private Sprite BackImage;
+    [SerializeField] private Vector2 renderedCardSize = new Vector2(2.32f, 3.2f);
     private SpriteRenderer mSpriteRenderer;
     public int cardID;
     public string cardName;
@@ -16,9 +16,23 @@ public class Card : MonoBehaviour{
     public Sprite BackImageSprite => BackImage;
     public string DisplayName => string.IsNullOrWhiteSpace(cardName) ? name : cardName;
     public string StreamingImagePath => streamingImagePath;
+    public string OfficialImageUrl => officialImageUrl;
+
+    public void Configure(CardDefinition definition)
+    {
+        if (definition == null) return;
+        cardID = definition.id;
+        cardName = definition.name;
+        Type = definition.CardType;
+        officialImageUrl = definition.imageUrl;
+        streamingImagePath = string.Empty;
+        gameObject.name = $"{definition.id:D5}_{definition.cardNumber}";
+        if (isActiveAndEnabled && CardImage == null && !string.IsNullOrWhiteSpace(officialImageUrl))
+            StartCoroutine(LoadOfficialImage());
+    }
 
     private Sprite runtimeSprite;
-    private Texture2D runtimeTexture;
+    private bool acquiredCachedImage;
 
     public PositionStatus posStatus;
     public CardType Type;
@@ -51,54 +65,63 @@ public class Card : MonoBehaviour{
     void Awake()
     {
         mSpriteRenderer = GetComponent<SpriteRenderer>();
+        ConfigureRendererSize();
         posStatus = PositionStatus.InDeck;
     }
     
 
     void Start()
     {
-        if(mSpriteRenderer != null) mSpriteRenderer.sprite = CardImage;
+        ApplyFrontSprite(CardImage);
         
     }
 
     private void OnEnable()
     {
-        if (CardImage == null && !string.IsNullOrWhiteSpace(streamingImagePath))
-            StartCoroutine(LoadStreamingImage());
+        if (CardImage == null && !string.IsNullOrWhiteSpace(officialImageUrl))
+            StartCoroutine(LoadOfficialImage());
     }
 
     private void OnDisable()
     {
-        if (runtimeSprite != null)
+        if (acquiredCachedImage)
         {
             if (CardImage == runtimeSprite) CardImage = null;
-            Destroy(runtimeSprite);
+            CardImageCache.Release(officialImageUrl);
         }
-        if (runtimeTexture != null) Destroy(runtimeTexture);
         runtimeSprite = null;
-        runtimeTexture = null;
+        acquiredCachedImage = false;
     }
 
-    private IEnumerator LoadStreamingImage()
+    private IEnumerator LoadOfficialImage()
     {
-        string path = Path.Combine(Application.streamingAssetsPath, streamingImagePath).Replace('\\', '/');
-        string uri = path.Contains("://") ? path : "file:///" + path;
-        using (UnityWebRequest request = UnityWebRequestTexture.GetTexture(uri))
+        yield return CardImageCache.Acquire(officialImageUrl, sprite =>
         {
-            yield return request.SendWebRequest();
-            if (request.result != UnityWebRequest.Result.Success)
+            if (sprite == null) return;
+            if (!isActiveAndEnabled)
             {
-                Debug.LogWarning($"Could not load card image '{streamingImagePath}': {request.error}", this);
-                yield break;
+                CardImageCache.Release(officialImageUrl);
+                return;
             }
+            runtimeSprite = sprite;
+            acquiredCachedImage = true;
+            CardImage = sprite;
+            ApplyFrontSprite(sprite);
+        });
+    }
 
-            runtimeTexture = DownloadHandlerTexture.GetContent(request);
-            runtimeTexture.name = cardName + " Texture";
-            runtimeSprite = Sprite.Create(runtimeTexture, new Rect(0, 0, runtimeTexture.width, runtimeTexture.height), new Vector2(0.5f, 0.5f), 100f);
-            runtimeSprite.name = cardName + " Sprite";
-            CardImage = runtimeSprite;
-            if (mSpriteRenderer != null) mSpriteRenderer.sprite = runtimeSprite;
-        }
+    private void ConfigureRendererSize()
+    {
+        if (mSpriteRenderer == null) return;
+        mSpriteRenderer.drawMode = SpriteDrawMode.Sliced;
+        mSpriteRenderer.size = renderedCardSize;
+    }
+
+    private void ApplyFrontSprite(Sprite sprite)
+    {
+        if (mSpriteRenderer == null) return;
+        ConfigureRendererSize();
+        mSpriteRenderer.sprite = sprite;
     }
 
 

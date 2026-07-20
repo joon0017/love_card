@@ -7,6 +7,7 @@ public static class OfficialCardPrefabImporter
 {
     private const string ManifestPath = "Assets/Resources/Cards/official_cards.json";
     private const string BasePrefabPath = "Assets/Resources/Cards/0000_LL-bp1-001-R+.prefab";
+    private const string SharedPrefabPath = "Assets/Resources/Cards/cardPrefab.prefab";
 
     [Serializable] private class Manifest { public CardRecord[] cards; }
     [Serializable] private class CardRecord
@@ -16,46 +17,52 @@ public static class OfficialCardPrefabImporter
         public string cardNumber;
         public string name;
         public string type;
-        public string streamingImagePath;
+        public string imageUrl;
     }
 
-    [MenuItem("Tools/Cards/Import Downloaded Official Cards")]
+    [MenuItem("Tools/Cards/Import Official Card Catalog")]
     public static void Import()
     {
         if (!File.Exists(ManifestPath))
             throw new FileNotFoundException("Run Tools/ImportOfficialCards.py before importing prefabs.", ManifestPath);
 
         Manifest manifest = JsonUtility.FromJson<Manifest>(File.ReadAllText(ManifestPath));
-        GameObject basePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BasePrefabPath);
-        if (basePrefab == null) throw new InvalidOperationException("Base card prefab is missing: " + BasePrefabPath);
+        GameObject source = AssetDatabase.LoadAssetAtPath<GameObject>(SharedPrefabPath)
+            ?? AssetDatabase.LoadAssetAtPath<GameObject>(BasePrefabPath);
+        if (source == null) throw new InvalidOperationException("No card prefab exists to use as the shared template.");
 
-        int created = 0;
+        GameObject instance = (GameObject)PrefabUtility.InstantiatePrefab(source);
+        PrefabUtility.UnpackPrefabInstance(instance, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+        instance.name = "cardPrefab";
+        SpriteRenderer renderer = instance.GetComponent<SpriteRenderer>();
+        renderer.sprite = null;
+        renderer.drawMode = SpriteDrawMode.Sliced;
+        renderer.size = new Vector2(2.32f, 3.2f);
+        Card card = instance.GetComponent<Card>();
+        SerializedObject serializedCard = new SerializedObject(card);
+        serializedCard.FindProperty("CardImage").objectReferenceValue = null;
+        serializedCard.FindProperty("streamingImagePath").stringValue = string.Empty;
+        serializedCard.FindProperty("officialImageUrl").stringValue = string.Empty;
+        serializedCard.FindProperty("cardID").intValue = 0;
+        serializedCard.FindProperty("cardName").stringValue = string.Empty;
+        serializedCard.FindProperty("Type").enumValueIndex = 0;
+        serializedCard.ApplyModifiedPropertiesWithoutUndo();
+        PrefabUtility.SaveAsPrefabAsset(instance, SharedPrefabPath);
+        UnityEngine.Object.DestroyImmediate(instance);
+
         foreach (CardRecord record in manifest.cards)
         {
-            string folder = "Assets/Resources/Cards/" + record.folder;
-            EnsureFolder(folder);
-            string safeNumber = SanitizeFileName(record.cardNumber);
-            string prefabPath = $"{folder}/{record.id:D5}_{safeNumber}.prefab";
-            GameObject instance = (GameObject)PrefabUtility.InstantiatePrefab(basePrefab);
-            instance.name = $"{record.id:D5}_{record.cardNumber}";
-            instance.GetComponent<SpriteRenderer>().sprite = null;
-
-            Card card = instance.GetComponent<Card>();
-            SerializedObject serializedCard = new SerializedObject(card);
-            serializedCard.FindProperty("CardImage").objectReferenceValue = null;
-            serializedCard.FindProperty("streamingImagePath").stringValue = record.streamingImagePath;
-            serializedCard.FindProperty("cardID").intValue = record.id;
-            serializedCard.FindProperty("cardName").stringValue = record.name;
-            serializedCard.FindProperty("Type").enumValueIndex = CardType(record.type);
-            serializedCard.ApplyModifiedPropertiesWithoutUndo();
-
-            PrefabUtility.SaveAsPrefabAsset(instance, prefabPath);
-            UnityEngine.Object.DestroyImmediate(instance);
-            created++;
+            string productFolder = "Assets/Resources/Cards/" + record.folder;
+            if (AssetDatabase.IsValidFolder(productFolder)) AssetDatabase.DeleteAsset(productFolder);
+        }
+        foreach (string guid in AssetDatabase.FindAssets("t:Prefab", new[] { "Assets/Resources/Cards" }))
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            if (path != SharedPrefabPath) AssetDatabase.DeleteAsset(path);
         }
 
         AssetDatabase.SaveAssets();
-        Debug.Log($"Imported {created} official card prefabs into categorized Resources/Cards folders.");
+        Debug.Log("Replaced all card prefabs with Resources/Cards/cardPrefab.prefab.");
     }
 
     private static int CardType(string value)

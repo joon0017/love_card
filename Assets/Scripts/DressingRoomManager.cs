@@ -18,8 +18,8 @@ public class DressingRoomManager : MonoBehaviour
     [Header("Viewer")]
     [SerializeField] private string viewerCanvasResourcePath = "UI/DressingRoomViewCanvas";
 
-    private readonly List<Card> cards = new List<Card>();
-    private Card[] allCards = new Card[0];
+    private readonly List<CardDefinition> cards = new List<CardDefinition>();
+    private Card cardPrefab;
     private SpriteRenderer fieldSpriteRenderer;
     private Sprite defaultFieldSprite;
     private GameObject optionPopupRoot;
@@ -85,15 +85,15 @@ public class DressingRoomManager : MonoBehaviour
             ResolveDressingRoomField();
         }
 
-        Card cardPrefab = FindCardPrefab(card.cardID);
-        if (cardPrefab == null)
+        CardDefinition definition = FindCardDefinition(card.cardID);
+        if (definition == null)
         {
             Debug.LogWarning($"Cannot place card id {card.cardID} in the dressing room because no matching prefab exists.");
             return false;
         }
 
         CancelPendingInteraction();
-        cards.Insert(0, cardPrefab);
+        cards.Insert(0, definition);
         UpdateTopSprite();
         Destroy(card.gameObject);
         return true;
@@ -118,7 +118,7 @@ public class DressingRoomManager : MonoBehaviour
         dragGhost.transform.SetParent(activeCanvas.transform, false);
 
         Image image = dragGhost.AddComponent<Image>();
-        image.sprite = cards[cardIndex].FrontImage;
+        image.sprite = null;
         image.preserveAspect = true;
         image.raycastTarget = false;
 
@@ -304,14 +304,14 @@ public class DressingRoomManager : MonoBehaviour
         }
     }
 
-    private void CreateCardView(RectTransform parent, Card card, int index)
+    private void CreateCardView(RectTransform parent, CardDefinition card, int index)
     {
         RectTransform item = CreateUIRect("DressingRoomCard_" + index, parent);
 
         Image image = item.gameObject.AddComponent<Image>();
-        image.sprite = card.FrontImage;
+        image.sprite = null;
         image.preserveAspect = true;
-        image.color = card.FrontImage != null ? Color.white : new Color(0.18f, 0.20f, 0.23f, 1f);
+        image.color = new Color(0.18f, 0.20f, 0.23f, 1f);
 
         DressingRoomViewerCard viewCard = item.gameObject.AddComponent<DressingRoomViewerCard>();
         viewCard.Initialize(this, index);
@@ -372,12 +372,13 @@ public class DressingRoomManager : MonoBehaviour
     {
         if (!IsValidCardIndex(cardIndex)) return;
 
-        Card cardPrefab = cards[cardIndex];
+        CardDefinition definition = cards[cardIndex];
         cards.RemoveAt(cardIndex);
         UpdateTopSprite();
 
         Vector3 spawnPosition = GetDressingRoomWorldPosition();
-        Card card = Instantiate(cardPrefab, spawnPosition, Quaternion.identity);
+        Card card = CardCatalog.CreateCard(cardPrefab, definition, spawnPosition, Quaternion.identity);
+        if (card == null) return;
         card.AddToHand();
         BuildViewer();
     }
@@ -409,7 +410,7 @@ public class DressingRoomManager : MonoBehaviour
         ResolveDressingRoomField();
         if (fieldSpriteRenderer == null) return;
 
-        fieldSpriteRenderer.sprite = cards.Count > 0 && cards[0] != null ? cards[0].FrontImage : defaultFieldSprite;
+        fieldSpriteRenderer.sprite = defaultFieldSprite;
     }
 
     private bool IsPointerOverDressingRoom(Vector2 screenPosition)
@@ -482,21 +483,15 @@ public class DressingRoomManager : MonoBehaviour
         return cardIndex >= 0 && cardIndex < cards.Count;
     }
 
-    private Card FindCardPrefab(int cardId)
+    private CardDefinition FindCardDefinition(int cardId)
     {
-        if (allCards == null || allCards.Length == 0)
-        {
-            LoadCardLibrary();
-        }
-
-        return allCards.FirstOrDefault(card => card.cardID == cardId);
+        return CardCatalog.TryGet(cardId, out CardDefinition definition) ? definition : null;
     }
 
     private void LoadCardLibrary()
     {
-        allCards = Resources.LoadAll<Card>("Cards/")
-            .OrderBy(card => card.cardID)
-            .ToArray();
+        cardPrefab = Resources.Load<Card>("Cards/cardPrefab");
+        if (cardPrefab == null) Debug.LogError("Missing Resources/Cards/cardPrefab.prefab");
     }
 
     private void EnsureEventSystem()

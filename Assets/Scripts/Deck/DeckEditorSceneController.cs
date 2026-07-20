@@ -15,6 +15,7 @@ public class DeckEditorSceneController : MonoBehaviour
         public string cardNumber;
         public string name;
         public string type;
+        public string imageUrl;
     }
 
     private class CardLibraryEntry
@@ -22,7 +23,7 @@ public class DeckEditorSceneController : MonoBehaviour
         public int Id;
         public string Name;
         public Card.CardType Type;
-        public Sprite Sprite;
+        public string ImageUrl;
     }
 
     [SerializeField] private DeckEditorManager deckEditorManager;
@@ -62,7 +63,9 @@ public class DeckEditorSceneController : MonoBehaviour
 
     private CardLibraryEntry[] allCards = new CardLibraryEntry[0];
     private Dictionary<int, CardLibraryEntry> cardsById = new Dictionary<int, CardLibraryEntry>();
+    private readonly List<string> loadedLibraryImageUrls = new List<string>();
     private int cardLibraryPage;
+    private int thumbnailGeneration;
 
     private void Awake()
     {
@@ -122,7 +125,8 @@ public class DeckEditorSceneController : MonoBehaviour
             {
                 Id = card.id,
                 Name = string.IsNullOrWhiteSpace(card.name) ? card.cardNumber : card.name,
-                Type = ParseCardType(card.type)
+                Type = ParseCardType(card.type),
+                ImageUrl = card.imageUrl
             })
             .OrderBy(card => card.Id)
             .ThenBy(card => card.Name)
@@ -139,6 +143,12 @@ public class DeckEditorSceneController : MonoBehaviour
         if (!string.IsNullOrEmpty(value) && value.Contains("ライブ")) return Card.CardType.Live;
         if (!string.IsNullOrEmpty(value) && value.Contains("エネルギー")) return Card.CardType.Energy;
         return Card.CardType.Member;
+    }
+
+    private void OnDestroy()
+    {
+        thumbnailGeneration++;
+        ReleaseLibraryThumbnails();
     }
 
     private void ResolveFont()
@@ -435,6 +445,8 @@ public class DeckEditorSceneController : MonoBehaviour
     {
         if (cardLibraryList == null) return;
 
+        thumbnailGeneration++;
+        ReleaseLibraryThumbnails();
         ClearChildren(cardLibraryList);
         if (allCards.Length == 0)
         {
@@ -517,8 +529,10 @@ public class DeckEditorSceneController : MonoBehaviour
         HorizontalLayoutGroup layout = AddHorizontalLayout(row, 10, 10, 10, 8, 8);
         layout.childForceExpandWidth = false;
 
-        Image thumbnail = CreateImage("Thumbnail", row, card.Sprite);
+        Image thumbnail = CreateImage("Thumbnail", row, null);
         AddLayoutElement(thumbnail.rectTransform, 58, 78, 0, 0);
+        if (!string.IsNullOrWhiteSpace(card.ImageUrl))
+            StartCoroutine(LoadLibraryThumbnail(card.ImageUrl, thumbnail, thumbnailGeneration));
 
         Text info = CreateText("Info", row, FormatCardLabel(card), 17, FontStyle.Normal, TextAnchor.MiddleLeft);
         AddLayoutElement(info.rectTransform, -1, -1, 1, 0);
@@ -530,6 +544,29 @@ public class DeckEditorSceneController : MonoBehaviour
                 SetStatus($"Added {card.Name}.");
             }
         }, accentColor, 52, 52);
+    }
+
+    private System.Collections.IEnumerator LoadLibraryThumbnail(string url, Image target, int generation)
+    {
+        Sprite loadedSprite = null;
+        yield return CardImageCache.Acquire(url, sprite => loadedSprite = sprite);
+        if (loadedSprite == null) yield break;
+
+        if (generation != thumbnailGeneration || target == null)
+        {
+            CardImageCache.Release(url);
+            yield break;
+        }
+
+        loadedLibraryImageUrls.Add(url);
+        target.sprite = loadedSprite;
+        target.color = Color.white;
+    }
+
+    private void ReleaseLibraryThumbnails()
+    {
+        foreach (string url in loadedLibraryImageUrls) CardImageCache.Release(url);
+        loadedLibraryImageUrls.Clear();
     }
 
     private void CreateDeckRow(RectTransform parent, int cardId, int count, CardLibraryEntry card)

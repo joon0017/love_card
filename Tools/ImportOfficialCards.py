@@ -1,11 +1,6 @@
 #!/usr/bin/env python3
-"""Download the official Love Live card list and images into Unity Assets.
+"""Crawl official card metadata and image URLs without bundling image files."""
 
-The crawler is resumable: existing non-empty images are not downloaded again.
-Run from the project root, then run OfficialCardPrefabImporter in Unity.
-"""
-
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from html import unescape
 from pathlib import Path
 import json
@@ -15,6 +10,7 @@ import time
 import urllib.parse
 import urllib.request
 import urllib.error
+from MigrateOfficialCardCatalog import enrich_card
 
 BASE = "https://llofficial-cardgame.com"
 ROOT = Path(__file__).resolve().parents[1]
@@ -124,17 +120,6 @@ def crawl_product(code, title, folder):
     return list(unique.values())
 
 
-def download_image(card):
-    folder = CARDS_ROOT / card["folder"] / "Images"
-    folder.mkdir(parents=True, exist_ok=True)
-    destination = folder / card["imageFile"]
-    if not destination.exists() or destination.stat().st_size == 0:
-        data = fetch(card["imageUrl"])
-        destination.write_bytes(data)
-    card["imageAssetPath"] = destination.relative_to(ROOT).as_posix()
-    return card
-
-
 def main():
     CARDS_ROOT.mkdir(parents=True, exist_ok=True)
     all_cards = []
@@ -144,21 +129,11 @@ def main():
         all_cards.extend(crawl_product(*product))
 
     all_cards.sort(key=lambda c: (c["productCode"], c["cardNumber"], c["imageUrl"]))
-    with ThreadPoolExecutor(max_workers=8) as pool:
-        futures = [pool.submit(download_image, card) for card in all_cards]
-        completed = 0
-        for future in as_completed(futures):
-            future.result()
-            completed += 1
-            if completed % 100 == 0 or completed == len(futures):
-                print(f"Downloaded/verified {completed}/{len(futures)} images", flush=True)
-
     manifest_cards = []
     for index, card in enumerate(all_cards):
-        card.pop("imageUrl", None)
         card.pop("imageFile", None)
         card["id"] = 10000 + index
-        manifest_cards.append(card)
+        manifest_cards.append(enrich_card(card))
     MANIFEST.write_text(json.dumps({"cards": manifest_cards}, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Wrote {MANIFEST} with {len(manifest_cards)} cards", flush=True)
 

@@ -6,8 +6,8 @@ public class DeckManager : MonoBehaviour
 {
     public static DeckManager instance;
 
-    public Card[] AllCards {get; private set;}        // Master list
-    public Card[] InDeck = new Card[0];          // Active deck (current deck)
+    public CardDefinition[] AllCards {get; private set;}
+    public CardDefinition[] InDeck = new CardDefinition[0];
     public DeckData ActiveDeckData { get; private set; }
     public string ActiveDeckName => ActiveDeckData != null ? ActiveDeckData.deckName : string.Empty;
     public int RemainingCards => InDeck == null ? 0 : Mathf.Max(0, InDeck.Length - nextCardIndex);
@@ -17,6 +17,7 @@ public class DeckManager : MonoBehaviour
     [SerializeField] private bool loadSelectedSavedDeck = true;
     [SerializeField] private bool persistBetweenScenes = true;
     [SerializeField] private bool schuffle = false;
+    [SerializeField] private Card cardPrefab;
     void Awake()
     {
         if (instance == null)
@@ -63,7 +64,7 @@ public class DeckManager : MonoBehaviour
         if(deckData == null)
         {
             ActiveDeckData = null;
-            SetDeck(new Card[0]);
+            SetDeck(new CardDefinition[0]);
             return;
         }
 
@@ -97,7 +98,7 @@ public class DeckManager : MonoBehaviour
         }
 
         Debug.LogWarning("No saved deck found. Using one copy of each loaded card.");
-        ActiveDeckData = DeckStorage.CreateDeck("Fallback Deck", AllCards.Select(card => card.cardID));
+        ActiveDeckData = DeckStorage.CreateDeck("Fallback Deck", AllCards.Select(card => card.id));
         SetDeck(AllCards);
     }
 
@@ -120,16 +121,16 @@ public class DeckManager : MonoBehaviour
         return true;
     }
 
-    private Card[] ResolveCards(int[] cardIds)
+    private CardDefinition[] ResolveCards(int[] cardIds)
     {
-        if(cardIds == null || cardIds.Length == 0) return new Card[0];
+        if(cardIds == null || cardIds.Length == 0) return new CardDefinition[0];
 
         var cardsById = AllCards
-            .GroupBy(_card => _card.cardID)
+            .GroupBy(_card => _card.id)
             .ToDictionary(group => group.Key, group => group.First());
 
-        Card[] loadedDeck = cardIds
-            .Select(cardId => cardsById.TryGetValue(cardId, out Card loadedCard) ? loadedCard : null)
+        CardDefinition[] loadedDeck = cardIds
+            .Select(cardId => cardsById.TryGetValue(cardId, out CardDefinition loadedCard) ? loadedCard : null)
             .Where(loadedCard => loadedCard != null)
             .ToArray();
 
@@ -165,15 +166,14 @@ public class DeckManager : MonoBehaviour
             return null;
         }
 
-        Card cardPrefab = InDeck[nextCardIndex++];
-        if(cardPrefab == null) return null;
-
-        Card drawnCard = Instantiate(cardPrefab, drawPosition, Quaternion.identity);
+        CardDefinition definition = InDeck[nextCardIndex++];
+        Card drawnCard = CardCatalog.CreateCard(cardPrefab, definition, drawPosition, Quaternion.identity);
+        if (drawnCard == null) return null;
         drawnCard.AddToHand();
         return drawnCard;
     }
 
-    public Card PeekTopCard()
+    public CardDefinition PeekTopCard()
     {
         if(InDeck == null || nextCardIndex >= InDeck.Length)
         {
@@ -221,18 +221,16 @@ public class DeckManager : MonoBehaviour
     }
 
     private void LoadAllCards(){
-        AllCards = Resources.LoadAll<Card>("Cards/")
-        .OrderBy(_card => _card.cardID)
-        .ToArray();
-        //load all cards from Resources/Cards/
+        AllCards = CardCatalog.All.OrderBy(card => card.id).ToArray();
+        if (cardPrefab == null) cardPrefab = Resources.Load<Card>("Cards/cardPrefab");
         if(AllCards.Length == 0){
             Debug.LogError("No cards found in Resources/Cards/");
             return;
         }
     }
 
-    private void SetDeck(Card[] cards){
-        InDeck = cards ?? new Card[0];
+    private void SetDeck(CardDefinition[] cards){
+        InDeck = cards ?? new CardDefinition[0];
         nextCardIndex = 0;
     }
 
@@ -240,29 +238,29 @@ public class DeckManager : MonoBehaviour
     {
         if (card == null) return false;
 
-        Card cardPrefab = FindCardPrefab(card.cardID);
-        if (cardPrefab == null)
+        CardDefinition definition = FindCardDefinition(card.cardID);
+        if (definition == null)
         {
             Debug.LogWarning($"Cannot put card id {card.cardID} into the deck because no matching prefab exists.");
             return false;
         }
 
-        List<Card> cards = InDeck != null ? InDeck.ToList() : new List<Card>();
+        List<CardDefinition> cards = InDeck != null ? InDeck.ToList() : new List<CardDefinition>();
         int safeIndex = Mathf.Clamp(insertIndex, nextCardIndex, cards.Count);
-        cards.Insert(safeIndex, cardPrefab);
+        cards.Insert(safeIndex, definition);
         InDeck = cards.ToArray();
 
         Destroy(card.gameObject);
         return true;
     }
 
-    private Card FindCardPrefab(int cardId)
+    private CardDefinition FindCardDefinition(int cardId)
     {
         if (AllCards == null || AllCards.Length == 0)
         {
             LoadAllCards();
         }
 
-        return AllCards.FirstOrDefault(card => card.cardID == cardId);
+        return AllCards.FirstOrDefault(card => card.id == cardId);
     }
 }
