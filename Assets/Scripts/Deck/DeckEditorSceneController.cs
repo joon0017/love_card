@@ -8,6 +8,23 @@ using UnityEngine.UI;
 
 public class DeckEditorSceneController : MonoBehaviour
 {
+    [System.Serializable] private class CardCatalog { public CardRecord[] cards; }
+    [System.Serializable] private class CardRecord
+    {
+        public int id;
+        public string cardNumber;
+        public string name;
+        public string type;
+    }
+
+    private class CardLibraryEntry
+    {
+        public int Id;
+        public string Name;
+        public Card.CardType Type;
+        public Sprite Sprite;
+    }
+
     [SerializeField] private DeckEditorManager deckEditorManager;
     [SerializeField] private string playSceneName = "play";
 
@@ -40,8 +57,12 @@ public class DeckEditorSceneController : MonoBehaviour
     [SerializeField] private Button exportButton;
     [SerializeField] private Button importButton;
 
-    private Card[] allCards = new Card[0];
-    private Dictionary<int, Card> cardsById = new Dictionary<int, Card>();
+    [Header("Card Library Performance")]
+    [SerializeField, Min(10)] private int cardsPerPage = 60;
+
+    private CardLibraryEntry[] allCards = new CardLibraryEntry[0];
+    private Dictionary<int, CardLibraryEntry> cardsById = new Dictionary<int, CardLibraryEntry>();
+    private int cardLibraryPage;
 
     private void Awake()
     {
@@ -94,14 +115,30 @@ public class DeckEditorSceneController : MonoBehaviour
 
     private void LoadCardLibrary()
     {
-        allCards = Resources.LoadAll<Card>("Cards/")
-            .OrderBy(card => card.cardID)
-            .ThenBy(card => card.DisplayName)
+        TextAsset catalogAsset = Resources.Load<TextAsset>("Cards/official_cards");
+        CardCatalog catalog = catalogAsset != null ? JsonUtility.FromJson<CardCatalog>(catalogAsset.text) : null;
+        allCards = (catalog?.cards ?? new CardRecord[0])
+            .Select(card => new CardLibraryEntry
+            {
+                Id = card.id,
+                Name = string.IsNullOrWhiteSpace(card.name) ? card.cardNumber : card.name,
+                Type = ParseCardType(card.type)
+            })
+            .OrderBy(card => card.Id)
+            .ThenBy(card => card.Name)
             .ToArray();
 
         cardsById = allCards
-            .GroupBy(card => card.cardID)
+            .GroupBy(card => card.Id)
             .ToDictionary(group => group.Key, group => group.First());
+        cardLibraryPage = 0;
+    }
+
+    private Card.CardType ParseCardType(string value)
+    {
+        if (!string.IsNullOrEmpty(value) && value.Contains("ライブ")) return Card.CardType.Live;
+        if (!string.IsNullOrEmpty(value) && value.Contains("エネルギー")) return Card.CardType.Energy;
+        return Card.CardType.Member;
     }
 
     private void ResolveFont()
@@ -405,11 +442,41 @@ public class DeckEditorSceneController : MonoBehaviour
             return;
         }
 
-        foreach (Card card in allCards)
+        int pageCount = Mathf.Max(1, Mathf.CeilToInt(allCards.Length / (float)cardsPerPage));
+        cardLibraryPage = Mathf.Clamp(cardLibraryPage, 0, pageCount - 1);
+        int first = cardLibraryPage * cardsPerPage;
+        int last = Mathf.Min(first + cardsPerPage, allCards.Length);
+
+        AddLibraryPager(cardLibraryList, pageCount, true);
+        for (int index = first; index < last; index++)
         {
-            Card capturedCard = card;
-            CreateCardLibraryRow(cardLibraryList, capturedCard);
+            CreateCardLibraryRow(cardLibraryList, allCards[index]);
         }
+        AddLibraryPager(cardLibraryList, pageCount, false);
+    }
+
+    private void AddLibraryPager(RectTransform parent, int pageCount, bool top)
+    {
+        RectTransform row = CreatePanel(top ? "PagerTop" : "PagerBottom", parent, panelColor);
+        AddLayoutElement(row, -1, 52, 0, 0);
+        HorizontalLayoutGroup layout = AddHorizontalLayout(row, 8, 6, 6, 4, 4);
+        layout.childForceExpandWidth = false;
+
+        Button previous = CreateButton(row, "Previous", () => ChangeLibraryPage(-1), buttonColor, 104, 40);
+        previous.interactable = cardLibraryPage > 0;
+        Text label = CreateText("Page", row, $"Page {cardLibraryPage + 1} / {pageCount}  ({allCards.Length} cards)", 16, FontStyle.Bold, TextAnchor.MiddleCenter);
+        AddLayoutElement(label.rectTransform, -1, -1, 1, 0);
+        Button next = CreateButton(row, "Next", () => ChangeLibraryPage(1), buttonColor, 82, 40);
+        next.interactable = cardLibraryPage + 1 < pageCount;
+    }
+
+    private void ChangeLibraryPage(int direction)
+    {
+        cardLibraryPage += direction;
+        RefreshCardLibrary();
+        Canvas.ForceUpdateCanvases();
+        ScrollRect scroll = cardLibraryList.GetComponentInParent<ScrollRect>();
+        if (scroll != null) scroll.verticalNormalizedPosition = 1f;
     }
 
     private void RefreshCurrentDeck()
@@ -438,19 +505,19 @@ public class DeckEditorSceneController : MonoBehaviour
         {
             int cardId = group.Key;
             int count = group.Count();
-            cardsById.TryGetValue(cardId, out Card card);
+            cardsById.TryGetValue(cardId, out CardLibraryEntry card);
             CreateDeckRow(currentDeckList, cardId, count, card);
         }
     }
 
-    private void CreateCardLibraryRow(RectTransform parent, Card card)
+    private void CreateCardLibraryRow(RectTransform parent, CardLibraryEntry card)
     {
-        RectTransform row = CreatePanel("Card_" + card.cardID, parent, headerColor);
+        RectTransform row = CreatePanel("Card_" + card.Id, parent, headerColor);
         AddLayoutElement(row, -1, 94, 0, 0);
         HorizontalLayoutGroup layout = AddHorizontalLayout(row, 10, 10, 10, 8, 8);
         layout.childForceExpandWidth = false;
 
-        Image thumbnail = CreateImage("Thumbnail", row, card.FrontImage);
+        Image thumbnail = CreateImage("Thumbnail", row, card.Sprite);
         AddLayoutElement(thumbnail.rectTransform, 58, 78, 0, 0);
 
         Text info = CreateText("Info", row, FormatCardLabel(card), 17, FontStyle.Normal, TextAnchor.MiddleLeft);
@@ -458,21 +525,21 @@ public class DeckEditorSceneController : MonoBehaviour
 
         CreateButton(row, "+", () =>
         {
-            if (deckEditorManager.AddCard(card))
+            if (deckEditorManager.AddCardById(card.Id))
             {
-                SetStatus($"Added {card.DisplayName}.");
+                SetStatus($"Added {card.Name}.");
             }
         }, accentColor, 52, 52);
     }
 
-    private void CreateDeckRow(RectTransform parent, int cardId, int count, Card card)
+    private void CreateDeckRow(RectTransform parent, int cardId, int count, CardLibraryEntry card)
     {
         RectTransform row = CreatePanel("DeckCard_" + cardId, parent, headerColor);
         AddLayoutElement(row, -1, 72, 0, 0);
         HorizontalLayoutGroup layout = AddHorizontalLayout(row, 8, 10, 10, 8, 8);
         layout.childForceExpandWidth = false;
 
-        string cardName = card != null ? card.DisplayName : "Unknown Card";
+        string cardName = card != null ? card.Name : "Unknown Card";
         Text info = CreateText("Info", row, $"{cardName}\nID {cardId} x{count}", 17, FontStyle.Normal, TextAnchor.MiddleLeft);
         AddLayoutElement(info.rectTransform, -1, -1, 1, 0);
 
@@ -480,9 +547,9 @@ public class DeckEditorSceneController : MonoBehaviour
         CreateButton(row, "+", () => deckEditorManager.AddCardById(cardId), accentColor, 48, 48);
     }
 
-    private string FormatCardLabel(Card card)
+    private string FormatCardLabel(CardLibraryEntry card)
     {
-        return $"{card.DisplayName}\nID {card.cardID} | {card.Type}";
+        return $"{card.Name}\nID {card.Id} | {card.Type}";
     }
 
     private Button CreateListButton(RectTransform parent, string label, UnityEngine.Events.UnityAction action)

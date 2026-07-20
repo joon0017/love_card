@@ -1,7 +1,11 @@
 using UnityEngine;
+using UnityEngine.Networking;
+using System.Collections;
+using System.IO;
 
 public class Card : MonoBehaviour{
     [SerializeField] protected Sprite CardImage;
+    [SerializeField] private string streamingImagePath;
     [SerializeField] private Sprite BackImage;
     private SpriteRenderer mSpriteRenderer;
     public int cardID;
@@ -11,6 +15,10 @@ public class Card : MonoBehaviour{
     public Sprite FrontImage => CardImage;
     public Sprite BackImageSprite => BackImage;
     public string DisplayName => string.IsNullOrWhiteSpace(cardName) ? name : cardName;
+    public string StreamingImagePath => streamingImagePath;
+
+    private Sprite runtimeSprite;
+    private Texture2D runtimeTexture;
 
     public PositionStatus posStatus;
     public CardType Type;
@@ -51,6 +59,46 @@ public class Card : MonoBehaviour{
     {
         if(mSpriteRenderer != null) mSpriteRenderer.sprite = CardImage;
         
+    }
+
+    private void OnEnable()
+    {
+        if (CardImage == null && !string.IsNullOrWhiteSpace(streamingImagePath))
+            StartCoroutine(LoadStreamingImage());
+    }
+
+    private void OnDisable()
+    {
+        if (runtimeSprite != null)
+        {
+            if (CardImage == runtimeSprite) CardImage = null;
+            Destroy(runtimeSprite);
+        }
+        if (runtimeTexture != null) Destroy(runtimeTexture);
+        runtimeSprite = null;
+        runtimeTexture = null;
+    }
+
+    private IEnumerator LoadStreamingImage()
+    {
+        string path = Path.Combine(Application.streamingAssetsPath, streamingImagePath).Replace('\\', '/');
+        string uri = path.Contains("://") ? path : "file:///" + path;
+        using (UnityWebRequest request = UnityWebRequestTexture.GetTexture(uri))
+        {
+            yield return request.SendWebRequest();
+            if (request.result != UnityWebRequest.Result.Success)
+            {
+                Debug.LogWarning($"Could not load card image '{streamingImagePath}': {request.error}", this);
+                yield break;
+            }
+
+            runtimeTexture = DownloadHandlerTexture.GetContent(request);
+            runtimeTexture.name = cardName + " Texture";
+            runtimeSprite = Sprite.Create(runtimeTexture, new Rect(0, 0, runtimeTexture.width, runtimeTexture.height), new Vector2(0.5f, 0.5f), 100f);
+            runtimeSprite.name = cardName + " Sprite";
+            CardImage = runtimeSprite;
+            if (mSpriteRenderer != null) mSpriteRenderer.sprite = runtimeSprite;
+        }
     }
 
 
