@@ -6,7 +6,7 @@ public class Card : MonoBehaviour{
     [SerializeField] private string streamingImagePath;
     [SerializeField] private string officialImageUrl;
     [SerializeField] private Sprite BackImage;
-    [SerializeField] private Vector2 renderedCardSize = new Vector2(2.32f, 3.2f);
+    [SerializeField] private Vector2 renderedCardSize = new Vector2(2.051282f, 2.916667f);
     private SpriteRenderer mSpriteRenderer;
     public int cardID;
     public string cardName;

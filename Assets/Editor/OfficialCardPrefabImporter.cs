@@ -37,7 +37,10 @@ public static class OfficialCardPrefabImporter
         SpriteRenderer renderer = instance.GetComponent<SpriteRenderer>();
         renderer.sprite = null;
         renderer.drawMode = SpriteDrawMode.Sliced;
-        renderer.size = new Vector2(2.32f, 3.2f);
+        renderer.size = new Vector2(2.051282f, 2.916667f);
+        BoxCollider cardCollider = instance.GetComponent<BoxCollider>();
+        if (cardCollider != null)
+            cardCollider.size = new Vector3(renderer.size.x, renderer.size.y, cardCollider.size.z);
         Card card = instance.GetComponent<Card>();
         SerializedObject serializedCard = new SerializedObject(card);
         serializedCard.FindProperty("CardImage").objectReferenceValue = null;
